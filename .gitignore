@@ -1,3 +1,10 @@
 compile_commands.json
 *build*/
 .cache/
+*.aux
+*.bbl
+*.bcf
+*.log
+*.run*
+*.synctex*
+*.toc
