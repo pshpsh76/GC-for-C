@@ -14,3 +14,16 @@ target_include_directories(gc_test PRIVATE
 )
 
 add_test(NAME GCTest COMMAND gc_test)
+
+add_executable(gc_benchmark gc_simple_bench.cpp)
+
+target_link_libraries(gc_benchmark PRIVATE
+    benchmark::benchmark
+    garbage_collector
+)
+
+target_include_directories(gc_benchmark PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(NAME GCBenchmark COMMAND gc_benchmark)

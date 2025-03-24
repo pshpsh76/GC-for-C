@@ -12,3 +12,6 @@ add_subdirectory(tests)
 
 # Add Google Test
 add_subdirectory(external/googletest)
+
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+add_subdirectory(external/benchmark)
