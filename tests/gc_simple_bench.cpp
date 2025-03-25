@@ -6,8 +6,8 @@
 
 static void** SetupPartialWorkload(size_t num_objects, size_t fixed_size, bool use_fixed_size,
                                    size_t min_size, size_t max_size, double drop_probability) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    constexpr size_t seed = 204;
+    std::mt19937 gen(seed);
     std::uniform_int_distribution<size_t> size_dist(min_size, max_size);
     std::uniform_real_distribution<double> drop_dist(0.0, 1.0);
 

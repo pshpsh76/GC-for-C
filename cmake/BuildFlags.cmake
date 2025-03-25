@@ -17,7 +17,7 @@ set(CMAKE_CXX_FLAGS_MSAN "-g -fsanitize=memory -fsanitize-recover=all"
     CACHE STRING "Compiler flags in msan build"
     FORCE)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3"
+set(CMAKE_CXX_FLAGS_Release "-O3"
     CACHE STRING "Compiler flags in release build"
     FORCE)
 
