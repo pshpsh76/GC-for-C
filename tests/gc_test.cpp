@@ -74,16 +74,21 @@ TEST(GarbageCollectorTest, Array) {
     for (size_t i = 0; i < kArraySize; ++i) {
         array[i] = static_cast<int>(i);
     }
+
+    constexpr size_t kOffset = 243;
+    array += kOffset;
     ASSERT_EQ(counter_finalizer, 0);
     gc_collect();
     ASSERT_EQ(counter_finalizer, 0);
-    for (size_t i = 0; i < kArraySize; ++i) {
-        ASSERT_EQ(array[i], static_cast<int>(i));
+    for (size_t i = kOffset; i < kArraySize; ++i) {
+        ASSERT_EQ(array[i - kOffset], static_cast<int>(i));
     }
     array = nullptr;
     gc_collect();
     ASSERT_EQ(counter_finalizer, 1);
 }
+
+
 
 TEST(GarbageCollectorTest, ManyStackRoots) {
     counter_finalizer = 0;

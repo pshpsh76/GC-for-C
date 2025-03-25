@@ -4,17 +4,15 @@
 
 #include "gc.h"
 
-static void** SetupPartialWorkload(size_t num_objects, size_t fixed_size, bool use_fixed_size,
-                                   size_t min_size, size_t max_size, double drop_probability) {
-    constexpr size_t seed = 204;
-    std::mt19937 gen(seed);
-    std::uniform_int_distribution<size_t> size_dist(min_size, max_size);
+static void** SetupPartialWorkload(size_t num_objects, size_t fixed_size, double drop_probability) {
+    constexpr size_t kSeed = 204;
+    std::mt19937 gen(kSeed);
     std::uniform_real_distribution<double> drop_dist(0.0, 1.0);
 
     std::vector<void*> objects;
     objects.reserve(num_objects);
     for (size_t i = 0; i < num_objects; ++i) {
-        size_t alloc_size = use_fixed_size ? fixed_size : size_dist(gen);
+        size_t alloc_size = fixed_size;
         void* ptr = gc_malloc_default(alloc_size);
         objects.push_back(ptr);
     }
@@ -32,42 +30,64 @@ static void** SetupPartialWorkload(size_t num_objects, size_t fixed_size, bool u
     return root_array;
 }
 
-static void BM_GcCollect_Unreachable(benchmark::State& state) {
-    const size_t num_objects = 10000;
+static void BM_GcRealloc(benchmark::State& state) {
+    const size_t initial_size = 64;
     for (auto _ : state) {
         state.PauseTiming();
-        std::vector<void*> objects;
-        objects.reserve(num_objects);
-        for (size_t i = 0; i < num_objects; ++i) {
-            objects.push_back(gc_malloc_default(64));
+        void* ptr = gc_malloc_default(initial_size);
+        state.ResumeTiming();
+        for (int i = 0; i < 100; ++i) {
+            size_t new_size = initial_size + (i % 10) * 10;
+            ptr = gc_realloc_default(ptr, new_size);
+        }
+        gc_collect();
+    }
+    state.SetItemsProcessed(100 * state.iterations());
+}
+BENCHMARK(BM_GcRealloc)->Unit(benchmark::kMicrosecond);
+
+
+static void BM_GcCollect_Drop5(benchmark::State& state) {
+    const size_t num_objects = 10000;
+    const double drop_probability = 0.05;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> drop_dist(0.0, 1.0);
+
+    std::vector<void*> objects;
+    objects.reserve(num_objects);
+    for (size_t i = 0; i < num_objects; ++i) {
+        objects.push_back(gc_malloc_default(64));
+    }
+
+    GCRoot root = {objects.data(), objects.size() * sizeof(void*)};
+    gc_init(&root, 1);
+
+    for (auto _ : state) {
+        state.PauseTiming();
+        for (size_t i = 0; i < objects.size(); ++i) {
+            if (drop_dist(gen) < drop_probability) {
+                objects[i] = nullptr;
+            }
         }
 
-        for (size_t i = 0; i < num_objects; ++i) {
-            objects[i] = nullptr;
-        }
-
-        gc_init(nullptr, 0);
         state.ResumeTiming();
 
         gc_collect();
-
-        state.PauseTiming();
-        state.ResumeTiming();
     }
     state.SetItemsProcessed(num_objects * state.iterations());
 }
-BENCHMARK(BM_GcCollect_Unreachable)->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_GcCollect_Drop5)->Unit(benchmark::kMicrosecond);
 
-static void BM_GcCollect_Partial(benchmark::State& state) {
+static void BM_GcCollect_DropProb(benchmark::State& state) {
     const size_t num_objects = 10000;
-    const double drop_probability = 0.3;
     const size_t fixed_size = 64;
+    double drop_probability = state.range(0) / 100.0;
 
     for (auto _ : state) {
         state.PauseTiming();
-
         void** root_array =
-            SetupPartialWorkload(num_objects, fixed_size, true, 0, 0, drop_probability);
+            SetupPartialWorkload(num_objects, fixed_size, drop_probability);
         GCRoot roots[] = {{reinterpret_cast<void*>(root_array), num_objects * sizeof(void*)}};
         gc_init(roots, 1);
         state.ResumeTiming();
@@ -80,6 +100,15 @@ static void BM_GcCollect_Partial(benchmark::State& state) {
     }
     state.SetItemsProcessed(num_objects * state.iterations());
 }
-BENCHMARK(BM_GcCollect_Partial)->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_GcCollect_DropProb)
+    ->Arg(0)
+    ->Arg(5)
+    ->Arg(15)
+    ->Arg(30)
+    ->Arg(50)
+    ->Arg(70)
+    ->Arg(100)
+    ->UseRealTime()
+    ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();
