@@ -88,8 +88,6 @@ TEST(GarbageCollectorTest, Array) {
     ASSERT_EQ(counter_finalizer, 1);
 }
 
-
-
 TEST(GarbageCollectorTest, ManyStackRoots) {
     counter_finalizer = 0;
     const int num_objects = 1000;

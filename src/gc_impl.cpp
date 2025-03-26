@@ -1,5 +1,6 @@
 #include "gc_impl.h"
 #include "gc.h"
+#include <algorithm>
 #include <cstdlib>
 #include <vector>
 
@@ -16,8 +17,8 @@ GCImpl::GCImpl() : timer_(0) {
 }
 
 void GCImpl::FreeAll() {
-    for (const auto& [ptr, allocation] : allocated_memory_) {
-        std::free(ptr);
+    for (const Allocation& allocation : allocated_memory_) {
+        std::free(allocation.ptr);
     }
     allocated_memory_.clear();
 }
@@ -43,20 +44,33 @@ void GCImpl::DeleteRoot(const GCRoot& root) {
 }
 
 void GCImpl::CreateAllocation(void* ptr, size_t size, FinalizerT finalizer) {
-    allocated_memory_[ptr] = {ptr, size, finalizer, timer_};
+    allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_});
+}
+
+bool operator==(const Allocation& lhs, const Allocation& rhs) {
+    return lhs.ptr == rhs.ptr;
 }
 
 void GCImpl::DeleteAllocation(void* ptr) {
-    allocated_memory_.erase(ptr);
+    Allocation fake_alloc{ptr, 0, nullptr, 0};
+    std::erase(allocated_memory_, fake_alloc);
+}
+
+void GCImpl::SortAllocations() {
+    std::sort(allocated_memory_.begin(), allocated_memory_.end(),
+              [](const Allocation& lhs, const Allocation& rhs) { return lhs.ptr < rhs.ptr; });
 }
 
 Allocation* GCImpl::FindAllocation(void* ptr) {
-    auto it = allocated_memory_.upper_bound(ptr);
+    Allocation fake{ptr, 0, nullptr, 0};
+    auto it = std::upper_bound(
+        allocated_memory_.begin(), allocated_memory_.end(), fake,
+        [](const Allocation& lhs, const Allocation& rhs) { return lhs.ptr < rhs.ptr; });
     if (it == allocated_memory_.begin()) {
         return nullptr;
     }
     --it;
-    Allocation& alloc = it->second;
+    Allocation& alloc = *it;
     uintptr_t base = reinterpret_cast<uintptr_t>(alloc.ptr);
     uintptr_t target = reinterpret_cast<uintptr_t>(ptr);
     if (target >= base && target < base + alloc.size) {
@@ -65,8 +79,8 @@ Allocation* GCImpl::FindAllocation(void* ptr) {
     return nullptr;
 }
 
-bool GCImpl::IsValidAllocation(Allocation* alloc) {
-    return alloc->last_valid_time == timer_;
+bool GCImpl::IsValidAllocation(const Allocation& alloc) {
+    return alloc.last_valid_time == timer_;
 }
 
 void* GCImpl::Malloc(size_t size, FinalizerT finalizer) {
@@ -140,11 +154,12 @@ void GCImpl::MarkHeapAllocs(const std::vector<Allocation*>& live_allocs) {
 
 void GCImpl::Sweep() {
     for (auto it = allocated_memory_.begin(); it != allocated_memory_.end();) {
-        if (!IsValidAllocation(&it->second)) {
-            Allocation alloc = it->second;
-            it = allocated_memory_.erase(it);
+        if (!IsValidAllocation(*it)) {
+            std::swap(*it, allocated_memory_.back());
+            Allocation alloc = allocated_memory_.back();
             alloc.finalizer(alloc.ptr, alloc.size);
             std::free(alloc.ptr);
+            allocated_memory_.pop_back();
         } else {
             ++it;
         }
@@ -153,6 +168,7 @@ void GCImpl::Sweep() {
 
 void GCImpl::Collect() {
     ++timer_;
+    SortAllocations();
     MarkHeapAllocs(MarkRoots());
     Sweep();
 }

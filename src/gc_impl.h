@@ -37,7 +37,8 @@ public:
 private:
     void CreateAllocation(void* ptr, size_t size, FinalizerT finalizer);
     void DeleteAllocation(void* ptr);
-    bool IsValidAllocation(Allocation* alloc);
+    bool IsValidAllocation(const Allocation& alloc);
+    void SortAllocations();
 
     std::vector<Allocation*> MarkRoots();
     void MarkHeapAllocs(const std::vector<Allocation*>& live_allocs);
@@ -46,8 +47,7 @@ private:
 
     Allocation* FindAllocation(void* ptr);
 
-    std::map<void*, Allocation>
-        allocated_memory_;  // Try to change it to vector to better cache locality
+    std::vector<Allocation> allocated_memory_;
     size_t timer_;
     std::vector<GCRoot> roots_;
 };

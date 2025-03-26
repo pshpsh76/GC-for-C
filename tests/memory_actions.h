@@ -15,7 +15,7 @@ enum Action {
 };
 
 void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t min_size,
-                                 size_t max_size) {
+                          size_t max_size) {
     constexpr size_t kSeed = 204;
     constexpr size_t kActionsTypes = 5;
     constexpr size_t kActionNum = 200;
@@ -44,7 +44,8 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
                 ++try_cnt;
                 ind = index_dist(gen);
                 if (try_cnt > 100) {
-                    break;;
+                    break;
+                    ;
                 }
             } while (root_array[ind] == nullptr || sizes[ind] <= 1);
             if (try_cnt > 100) {
@@ -81,7 +82,6 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
             }
         }
         if (iter == 24) {
-
         }
         state.ResumeTiming();
         gc_collect();
@@ -90,6 +90,5 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
         root_array[i] = nullptr;
     }
     gc_collect();
-    delete [] root_array;
+    delete[] root_array;
 }
-
