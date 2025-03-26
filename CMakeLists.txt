@@ -7,11 +7,6 @@ include(cmake/BuildFlags.cmake)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+add_subdirectory(external)
 add_subdirectory(src)
 add_subdirectory(tests)
-
-# Add Google Test
-add_subdirectory(external/googletest)
-
-set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-add_subdirectory(external/benchmark)

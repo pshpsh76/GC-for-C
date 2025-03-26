@@ -1,6 +1,7 @@
 #include "gc.h"
 #include "gc_impl.h"
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -46,7 +47,7 @@ void* gc_realloc_default(void* ptr, size_t size) {
 }
 
 void gc_free(void* ptr) {
-    gc_instance->Free(ptr);
+    gc_instance->Free(reinterpret_cast<uintptr_t>(ptr));
 }
 
 void gc_collect() {
