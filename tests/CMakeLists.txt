@@ -1,5 +1,5 @@
 add_executable(gc_test
-    gc_test.cpp
+    gc_lib_test.cpp
 )
 
 target_link_libraries(gc_test PRIVATE
@@ -15,7 +15,7 @@ target_include_directories(gc_test PRIVATE
 
 add_test(NAME GCTest COMMAND gc_test)
 
-add_executable(gc_benchmark gc_simple_bench.cpp)
+add_executable(gc_benchmark gc_lib_bench.cpp)
 
 target_link_libraries(gc_benchmark PRIVATE
     benchmark::benchmark
