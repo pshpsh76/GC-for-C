@@ -3,23 +3,19 @@
 #include <random>
 
 #include "gc.h"
+#include "memory_actions.h"
+
+constexpr size_t kSeed = 204;
 
 static void** SetupPartialWorkload(size_t num_objects, size_t fixed_size, double drop_probability) {
-    constexpr size_t kSeed = 204;
     std::mt19937 gen(kSeed);
     std::uniform_real_distribution<double> drop_dist(0.0, 1.0);
 
-    std::vector<void*> objects;
-    objects.reserve(num_objects);
+    void** root_array = new void*[num_objects];
     for (size_t i = 0; i < num_objects; ++i) {
         size_t alloc_size = fixed_size;
         void* ptr = gc_malloc_default(alloc_size);
-        objects.push_back(ptr);
-    }
-
-    void** root_array = new void*[num_objects];
-    for (size_t i = 0; i < num_objects; ++i) {
-        root_array[i] = objects[i];
+        root_array[i] = ptr;
     }
 
     for (size_t i = 0; i < num_objects; ++i) {
@@ -44,14 +40,12 @@ static void BM_GcRealloc(benchmark::State& state) {
     }
     state.SetItemsProcessed(100 * state.iterations());
 }
-BENCHMARK(BM_GcRealloc)->Unit(benchmark::kMicrosecond);
-
+BENCHMARK(BM_GcRealloc)->UseRealTime()->Unit(benchmark::kMicrosecond);
 
 static void BM_GcCollect_Drop5(benchmark::State& state) {
     const size_t num_objects = 10000;
     const double drop_probability = 0.05;
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    std::mt19937 gen(kSeed);
     std::uniform_real_distribution<double> drop_dist(0.0, 1.0);
 
     std::vector<void*> objects;
@@ -66,7 +60,7 @@ static void BM_GcCollect_Drop5(benchmark::State& state) {
     for (auto _ : state) {
         state.PauseTiming();
         for (size_t i = 0; i < objects.size(); ++i) {
-            if (drop_dist(gen) < drop_probability) {
+            if (objects[i] != nullptr && drop_dist(gen) < drop_probability) {
                 objects[i] = nullptr;
             }
         }
@@ -77,7 +71,7 @@ static void BM_GcCollect_Drop5(benchmark::State& state) {
     }
     state.SetItemsProcessed(num_objects * state.iterations());
 }
-BENCHMARK(BM_GcCollect_Drop5)->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_GcCollect_Drop5)->UseRealTime()->Unit(benchmark::kMicrosecond);
 
 static void BM_GcCollect_DropProb(benchmark::State& state) {
     const size_t num_objects = 10000;
@@ -86,8 +80,7 @@ static void BM_GcCollect_DropProb(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        void** root_array =
-            SetupPartialWorkload(num_objects, fixed_size, drop_probability);
+        void** root_array = SetupPartialWorkload(num_objects, fixed_size, drop_probability);
         GCRoot roots[] = {{reinterpret_cast<void*>(root_array), num_objects * sizeof(void*)}};
         gc_init(roots, 1);
         state.ResumeTiming();
@@ -110,5 +103,10 @@ BENCHMARK(BM_GcCollect_DropProb)
     ->Arg(100)
     ->UseRealTime()
     ->Unit(benchmark::kMicrosecond);
+
+static void BM_GcSimulateActions(benchmark::State& state) {
+    PerformMemoryActions(state, 10000, 64, 1024);
+}
+BENCHMARK(BM_GcSimulateActions)->UseRealTime()->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

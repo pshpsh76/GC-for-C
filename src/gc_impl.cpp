@@ -26,8 +26,8 @@ GCImpl::~GCImpl() {
     FreeAll();
 }
 
-void GCImpl::Init(const std::vector<GCRoot>& roots_param) {
-    roots_ = roots_param;
+void GCImpl::Init(const std::vector<GCRoot>& roots) {
+    roots_ = roots;
 }
 
 void GCImpl::AddRoot(const GCRoot& root) {
@@ -111,7 +111,7 @@ std::vector<Allocation*> GCImpl::MarkRoots() {
     std::vector<Allocation*> live;
     for (const auto& root : roots_) {
         uintptr_t start = reinterpret_cast<uintptr_t>(root.addr);
-        uintptr_t end = start + root.size;
+        uintptr_t end = start + root.size - kSize + 1;
         for (uintptr_t ptr = start; ptr < end; ptr += kSize) {
             Allocation* alloc = FindAllocation(GetMemoryPtr(ptr));
             if (alloc != nullptr) {
@@ -128,7 +128,7 @@ std::vector<Allocation*> GCImpl::MarkRoots() {
 void GCImpl::MarkHeapAllocs(const std::vector<Allocation*>& live_allocs) {
     for (Allocation* alloc : live_allocs) {
         uintptr_t heap_start = Aligned(reinterpret_cast<uintptr_t>(alloc->ptr));
-        uintptr_t heap_end = reinterpret_cast<uintptr_t>(alloc->ptr) + alloc->size;
+        uintptr_t heap_end = reinterpret_cast<uintptr_t>(alloc->ptr) + alloc->size - kSize + 1;
         for (uintptr_t ptr = heap_start; ptr < heap_end; ptr += kSize) {
             Allocation* heap_alloc = FindAllocation(GetMemoryPtr(ptr));
             if (heap_alloc != nullptr) {
