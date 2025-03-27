@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <vector>
 #include "gc_fwd.h"
 #include "gc.h"
@@ -34,6 +33,11 @@ public:
     void* Calloc(size_t nmemb, size_t size, FinalizerT finalizer);
     void* Realloc(void* ptr, size_t size, FinalizerT finalizer);
     void Free(uintptr_t ptr);
+
+    GCScheduler& GetScheduler();
+    const GCScheduler& GetScheduler() const;
+    void DisableScheduler();
+    void EnableScheduler();
 
     void Collect();
 
@@ -88,4 +92,6 @@ private:
     size_t timer_;
     std::vector<GCRoot> roots_;
     GCScheduler scheduler_;
+    bool enable_auto_ = true;
+    std::mutex lock_collect_;
 };

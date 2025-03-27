@@ -57,8 +57,44 @@ void gc_collect() {
 void gc_add_root(GCRoot root) {
     gc_instance->AddRoot(root);
 }
+
 void gc_delete_root(GCRoot root) {
     gc_instance->DeleteRoot(root);
+}
+
+size_t gc_get_bytes_threshold() {
+    return gc_instance->GetScheduler().GetThresholdBytes();
+}
+
+size_t gc_get_calls_threshold() {
+    return gc_instance->GetScheduler().GetThresholdCalls();
+}
+
+size_t gc_get_collect_interval() {
+    return gc_instance->GetScheduler().GetCollectionInterval().count();
+}
+
+void gc_set_bytes_threshold(size_t bytes) {
+    gc_instance->GetScheduler().SetThresholdBytes(bytes);
+}
+
+void gc_set_calls_threshold(size_t calls) {
+    gc_instance->GetScheduler().SetThresholdCalls(calls);
+}
+
+void gc_set_collect_interval(size_t milliseconds) {
+    gc_instance->GetScheduler().SetCollectionInterval(std::chrono::milliseconds(milliseconds));
+}
+
+void gc_reset_info() {
+    gc_instance->GetScheduler().ResetStats();
+}
+
+void gc_disable_auto() {
+    gc_instance->DisableScheduler();
+}
+void gc_enable_auto() {
+    gc_instance->EnableScheduler();
 }
 
 #ifdef __cplusplus

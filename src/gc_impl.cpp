@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <mutex>
 #include <vector>
 
 uintptr_t Aligned(uintptr_t ptr) {
@@ -49,7 +50,9 @@ void GCImpl::DeleteRoot(const GCRoot& root) {
 
 void GCImpl::CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer) {
     allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_});
-    scheduler_.UpdateAllocationStats(size);
+    if (enable_auto_) {
+        scheduler_.UpdateAllocationStats(size);
+    }
 }
 
 bool operator==(const Allocation& lhs, const Allocation& rhs) {
@@ -65,7 +68,6 @@ void GCImpl::SortAllocations() {
     std::sort(allocated_memory_.begin(), allocated_memory_.end(),
               [](const Allocation& lhs, const Allocation& rhs) { return lhs.ptr < rhs.ptr; });
 }
-
 
 bool GCImpl::IsValidAllocation(const Allocation& alloc) {
     return alloc.last_valid_time == timer_;
@@ -107,6 +109,24 @@ void GCImpl::Free(uintptr_t ptr) {
     alloc->finalizer(reinterpret_cast<void*>(alloc->ptr), alloc->size);
     std::free(reinterpret_cast<void*>(alloc->ptr));
     DeleteAllocation(alloc->ptr);
+}
+
+GCScheduler& GCImpl::GetScheduler() {
+    return scheduler_;
+}
+
+const GCScheduler& GCImpl::GetScheduler() const {
+    return scheduler_;
+}
+
+void GCImpl::DisableScheduler() {
+    scheduler_.Stop();
+    enable_auto_ = false;
+}
+
+void GCImpl::EnableScheduler() {
+    scheduler_.Start();
+    enable_auto_ = true;
 }
 
 void GCImpl::CollectPrepare() {
@@ -161,6 +181,7 @@ void GCImpl::Sweep() {
 }
 
 void GCImpl::Collect() {
+    std::lock_guard<std::mutex> lock(lock_collect_);
     CollectPrepare();
     MarkHeapAllocs(MarkRoots());
     Sweep();

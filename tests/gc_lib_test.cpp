@@ -1,8 +1,10 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 #include "gc.h"
+#include "utils.h"
 
 TEST(GarbageCollectorTest, SimpleAllocation) {
+    gc_disable_auto();
     gc_init(nullptr, 0);
 
     void* ptr = gc_malloc_default(128);
@@ -12,6 +14,7 @@ TEST(GarbageCollectorTest, SimpleAllocation) {
 }
 
 TEST(GarbageCollectorTest, DoubleFree) {
+    gc_disable_auto();
     gc_init(nullptr, 0);
 
     void* ptr = gc_malloc_default(64);
@@ -20,6 +23,7 @@ TEST(GarbageCollectorTest, DoubleFree) {
 }
 
 TEST(GarbageCollectorTest, Collection) {
+    gc_disable_auto();
     gc_init(nullptr, 0);
 
     gc_malloc_default(256);
@@ -27,12 +31,14 @@ TEST(GarbageCollectorTest, Collection) {
 }
 
 TEST(GarbageCollectorTest, LeakWithoutCollect) {
+    gc_disable_auto();
     gc_init(nullptr, 0);
 
     gc_malloc_default(128);
 }
 
 TEST(GarbageCollectorTest, RootNotCollected) {
+    gc_disable_auto();
     int* arr = static_cast<int*>(gc_malloc_default(10 * sizeof(int)));
     for (int i = 0; i < 10; i++) {
         arr[i] = i;
@@ -47,6 +53,7 @@ TEST(GarbageCollectorTest, RootNotCollected) {
 }
 
 TEST(GarbageCollectorTest, LivingAllocationNotCollected) {
+    gc_disable_auto();
     int* num;
     GCRoot roots[] = {{reinterpret_cast<void*>(&num), sizeof(num)}};
     gc_init(roots, 1);
@@ -58,13 +65,9 @@ TEST(GarbageCollectorTest, LivingAllocationNotCollected) {
     ASSERT_EQ(*num, 12345);
 }
 
-static int counter_finalizer = 0;
-extern "C" void CounterFinalizer(void*, size_t) {
-    ++counter_finalizer;
-}
-
 TEST(GarbageCollectorTest, Array) {
-    counter_finalizer = 0;
+    gc_disable_auto();
+    ResetCounter();
     int* array;
     GCRoot roots[] = {{reinterpret_cast<void*>(&array), sizeof(array)}};
     gc_init(roots, 1);
@@ -77,19 +80,20 @@ TEST(GarbageCollectorTest, Array) {
 
     constexpr size_t kOffset = 243;
     array += kOffset;
-    ASSERT_EQ(counter_finalizer, 0);
+    ASSERT_EQ(GetCounter(), 0);
     gc_collect();
-    ASSERT_EQ(counter_finalizer, 0);
+    ASSERT_EQ(GetCounter(), 0);
     for (size_t i = kOffset; i < kArraySize; ++i) {
         ASSERT_EQ(array[i - kOffset], static_cast<int>(i));
     }
     array = nullptr;
     gc_collect();
-    ASSERT_EQ(counter_finalizer, 1);
+    ASSERT_EQ(GetCounter(), 1);
 }
 
 TEST(GarbageCollectorTest, ManyStackRoots) {
-    counter_finalizer = 0;
+    gc_disable_auto();
+    ResetCounter();
     const int num_objects = 1000;
     int* objects[num_objects];
 
@@ -102,7 +106,7 @@ TEST(GarbageCollectorTest, ManyStackRoots) {
     }
 
     gc_collect();
-    ASSERT_EQ(counter_finalizer, 0);
+    ASSERT_EQ(GetCounter(), 0);
 
     for (int i = 0; i < num_objects; ++i) {
         ASSERT_EQ(*objects[i], i);
@@ -110,18 +114,14 @@ TEST(GarbageCollectorTest, ManyStackRoots) {
     }
 
     gc_collect();
-    ASSERT_EQ(counter_finalizer, num_objects);
+    ASSERT_EQ(GetCounter(), num_objects);
 }
 
-struct Node {
-    Node* next;
-    int value;
-};
-
 TEST(GarbageCollectorTest, CyclicReferencesCollected) {
+    gc_disable_auto();
     gc_init(nullptr, 0);
 
-    counter_finalizer = 0;
+    ResetCounter();
 
     Node* node1 = static_cast<Node*>(gc_malloc(sizeof(Node), CounterFinalizer));
     Node* node2 = static_cast<Node*>(gc_malloc(sizeof(Node), CounterFinalizer));
@@ -136,19 +136,14 @@ TEST(GarbageCollectorTest, CyclicReferencesCollected) {
 
     gc_collect();
 
-    ASSERT_EQ(counter_finalizer, 2);
+    ASSERT_EQ(GetCounter(), 2);
 }
 
-struct TreeNode {
-    TreeNode* left;
-    TreeNode* right;
-    int value;
-};
-
 TEST(GarbageCollectorTest, ComplexDataStructureCollected) {
+    gc_disable_auto();
     gc_init(nullptr, 0);
 
-    counter_finalizer = 0;
+    ResetCounter();
 
     TreeNode* root = static_cast<TreeNode*>(gc_malloc(sizeof(TreeNode), CounterFinalizer));
     TreeNode* left = static_cast<TreeNode*>(gc_malloc(sizeof(TreeNode), CounterFinalizer));
@@ -165,10 +160,11 @@ TEST(GarbageCollectorTest, ComplexDataStructureCollected) {
 
     gc_collect();
 
-    ASSERT_EQ(counter_finalizer, 3);
+    ASSERT_EQ(GetCounter(), 3);
 }
 
 TEST(GarbageCollectorTest, Realloc) {
+    gc_disable_auto();
     int* ptr;
     GCRoot roots[] = {{reinterpret_cast<void*>(&ptr), sizeof(void*)}};
     gc_init(roots, 1);

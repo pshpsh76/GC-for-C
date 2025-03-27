@@ -1,5 +1,5 @@
 add_executable(gc_test
-    gc_lib_test.cpp
+    gc_lib_test.cpp gc_sched_test.cpp
 )
 
 target_link_libraries(gc_test PRIVATE

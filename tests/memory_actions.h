@@ -1,5 +1,4 @@
 #include <cstddef>
-#include <unordered_map>
 #include <vector>
 #include <random>
 #include <benchmark/benchmark.h>
@@ -14,6 +13,7 @@ enum Action {
     Allocate,
 };
 
+template <bool CallCollect>
 void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t min_size,
                           size_t max_size) {
     constexpr size_t kSeed = 204;
@@ -84,7 +84,9 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
         if (iter == 24) {
         }
         state.ResumeTiming();
-        gc_collect();
+        if constexpr (CallCollect) {
+            gc_collect();
+        }
     }
     for (size_t i = 0; i < num_objects; ++i) {
         root_array[i] = nullptr;

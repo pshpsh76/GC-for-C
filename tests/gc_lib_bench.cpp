@@ -105,7 +105,7 @@ BENCHMARK(BM_GcCollect_DropProb)
     ->Unit(benchmark::kMicrosecond);
 
 static void BM_GcSimulateActions(benchmark::State& state) {
-    PerformMemoryActions(state, 10000, 64, 1024);
+    PerformMemoryActions<true>(state, 10000, 64, 1024);
 }
 BENCHMARK(BM_GcSimulateActions)->UseRealTime()->Unit(benchmark::kMicrosecond);
 

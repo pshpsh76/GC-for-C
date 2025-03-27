@@ -26,7 +26,15 @@ void gc_free(void *ptr);
 void gc_collect();
 void gc_add_root(GCRoot root);
 void gc_delete_root(GCRoot root);
-
+size_t gc_get_bytes_threshold();
+size_t gc_get_calls_threshold();
+size_t gc_get_collect_interval();
+void gc_set_bytes_threshold(size_t bytes);
+void gc_set_calls_threshold(size_t calls);
+void gc_set_collect_interval(size_t milliseconds);
+void gc_reset_info();
+void gc_disable_auto();
+void gc_enable_auto();
 #ifdef __cplusplus
 }
 #endif
