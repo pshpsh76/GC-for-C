@@ -2,7 +2,7 @@
 #include <chrono>
 #include <cstddef>
 
-const constexpr double kDefaultAlpha = 0.1, kDefaultPeak = 2.0;
+const constexpr double kDefaultAlpha = 0.2, kDefaultPeak = 2;
 const constexpr size_t kDefaultUpdateFreq = 20;
 
 class GCPacer {

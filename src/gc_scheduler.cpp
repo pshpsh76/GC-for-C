@@ -1,5 +1,4 @@
 #include "gc_scheduler.h"
-#include <iostream>
 #include <mutex>
 #include "gc_impl.h"
 #include "gc_pacer.h"

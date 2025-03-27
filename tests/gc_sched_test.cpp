@@ -62,10 +62,13 @@ TEST(AutoCollectorTest, Peak) {
     gc_set_calls_threshold(1000000000);
 
     for (int i = 0; i < 100000; ++i) {
-        gc_malloc(1000, CounterFinalizer);
+        if (i < 100) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        gc_malloc(1, CounterFinalizer);
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    ASSERT_GT(GetCounter(), 0);
+    ASSERT_GE(GetCounter(), 100);
 }
