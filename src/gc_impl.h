@@ -5,7 +5,9 @@
 #include <cstdint>
 #include <map>
 #include <vector>
+#include "gc_fwd.h"
 #include "gc.h"
+#include "gc_scheduler.h"
 
 struct Allocation {
     uintptr_t ptr;
@@ -85,4 +87,5 @@ private:
     std::vector<Allocation>::iterator prev_find_;
     size_t timer_;
     std::vector<GCRoot> roots_;
+    GCScheduler scheduler_;
 };

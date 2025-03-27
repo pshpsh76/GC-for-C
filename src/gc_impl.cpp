@@ -1,5 +1,6 @@
 #include "gc_impl.h"
 #include "gc.h"
+#include "gc_fwd.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -14,7 +15,8 @@ static uintptr_t GetMemoryPtr(uintptr_t ptr) {
     return (mem_ptr == nullptr ? 0 : reinterpret_cast<uintptr_t>(*mem_ptr));
 }
 
-GCImpl::GCImpl() : timer_(0) {
+GCImpl::GCImpl() : timer_(0), scheduler_(this) {
+    scheduler_.Start();
 }
 
 void GCImpl::FreeAll() {
@@ -25,6 +27,7 @@ void GCImpl::FreeAll() {
 }
 
 GCImpl::~GCImpl() {
+    scheduler_.Stop();
     FreeAll();
 }
 
@@ -46,6 +49,7 @@ void GCImpl::DeleteRoot(const GCRoot& root) {
 
 void GCImpl::CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer) {
     allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_});
+    scheduler_.UpdateAllocationStats(size);
 }
 
 bool operator==(const Allocation& lhs, const Allocation& rhs) {

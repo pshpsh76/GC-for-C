@@ -1,5 +1,5 @@
 ---
-Checks: '-*,cppcoreguidelines-pro-type-const-cast,google-readability-casting,modernize-replace-random-shuffle,readability-braces-around-statements,readability-container-size-empty,readability-redundant-control-flow,readability-redundant-string-init,modernize-use-nullptr,readability-identifier-naming,google-build-using-namespace'
+Checks: '-*,cppcoreguidelines-pro-type-const-cast,google-readability-casting,modernize-replace-random-shuffle,readability-braces-around-statements,readability-container-size-empty,readability-redundant-control-flow,readability-redundant-string-init,modernize-use-nullptr,readability-identifier-naming,google-build-using-namespace,readability-magic-numbers'
 HeaderFilterRegex: '\.h$'
 WarningsAsErrors: '*'
 CheckOptions:
@@ -35,5 +35,9 @@ CheckOptions:
     value: CamelCase
   - key: readability-identifier-naming.ConstexprVariablePrefix
     value: k
+  - key: readability-magic-numbers.IgnoredValues
+    value: '0,1'
+  - key: readability-magic-numbers.IgnoreEnums
+    value: 'true'
   - key: google-runtime-int.TypeSuffix
     value: _t
