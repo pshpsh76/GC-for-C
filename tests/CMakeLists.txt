@@ -15,7 +15,7 @@ target_include_directories(gc_test PRIVATE
 
 add_test(NAME GCTest COMMAND gc_test)
 
-add_executable(gc_benchmark gc_lib_bench.cpp)
+add_executable(gc_benchmark gc_lib_bench.cpp gc_sched_bench.cpp)
 
 target_link_libraries(gc_benchmark PRIVATE
     benchmark::benchmark

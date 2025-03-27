@@ -21,6 +21,7 @@ GCImpl::GCImpl() : timer_(0), scheduler_(this) {
 }
 
 void GCImpl::FreeAll() {
+    std::lock_guard<std::mutex> lock(lock_collect_);
     for (const Allocation& allocation : allocated_memory_) {
         std::free(reinterpret_cast<void*>(allocation.ptr));
     }
@@ -33,10 +34,12 @@ GCImpl::~GCImpl() {
 }
 
 void GCImpl::Init(const std::vector<GCRoot>& roots) {
+    std::lock_guard<std::mutex> lock(lock_collect_);
     roots_ = roots;
 }
 
 void GCImpl::AddRoot(const GCRoot& root) {
+    std::lock_guard<std::mutex> lock(lock_collect_);
     roots_.push_back(root);
 }
 
@@ -45,12 +48,13 @@ bool operator==(const GCRoot& lhs, const GCRoot& rhs) {
 }
 
 void GCImpl::DeleteRoot(const GCRoot& root) {
+    std::lock_guard<std::mutex> lock(lock_collect_);
     std::erase(roots_, root);
 }
 
 void GCImpl::CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer) {
     std::unique_lock<std::mutex> lock(lock_collect_);
-    allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_});
+    allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_ + 1});
     if (enable_auto_) {
         lock.unlock();
         scheduler_.UpdateAllocationStats(size);
@@ -62,6 +66,7 @@ bool operator==(const Allocation& lhs, const Allocation& rhs) {
 }
 
 void GCImpl::DeleteAllocation(uintptr_t ptr) {
+    std::lock_guard<std::mutex> lock(lock_collect_);
     Allocation fake_alloc{ptr, 0, nullptr, 0};
     std::erase(allocated_memory_, fake_alloc);
 }

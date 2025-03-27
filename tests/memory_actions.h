@@ -34,9 +34,13 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
     }
     GCRoot root[] = {{static_cast<void*>(root_array), num_objects * sizeof(void*)}};
     gc_init(root, 1);
-    size_t iter = 0;
+    if constexpr (!CallCollect) {
+        gc_enable_auto();
+    }
     for (auto _ : state) {
-        state.PauseTiming();
+        if (CallCollect) {
+            state.PauseTiming();
+        }
         for (size_t i = 0; i < kActionNum; ++i) {
             size_t ind;
             size_t try_cnt = 0;
@@ -81,10 +85,8 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
                     break;
             }
         }
-        if (iter == 24) {
-        }
-        state.ResumeTiming();
         if constexpr (CallCollect) {
+            state.ResumeTiming();
             gc_collect();
         }
     }

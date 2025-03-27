@@ -19,11 +19,15 @@ GCScheduler::~GCScheduler() {
 }
 
 void GCScheduler::Start() {
-    stop_flag_ = false;
-    std::lock_guard<std::mutex> lock(lock_scheduler_);
+    std::unique_lock<std::mutex> lock(lock_scheduler_);
     if (scheduler_thread_.joinable()) {
+        stop_flag_ = true;
+        lock.unlock();
+        loop_cv_.notify_one();
         scheduler_thread_.join();
+        lock.lock();
     }
+    stop_flag_ = false;
     scheduler_thread_ = std::thread(&GCScheduler::SchedulerLoop, this);
 }
 
