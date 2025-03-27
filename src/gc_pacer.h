@@ -1,6 +1,7 @@
 #pragma once
 #include <chrono>
 #include <cstddef>
+#include <mutex>
 
 const constexpr double kDefaultAlpha = 0.2, kDefaultPeak = 2;
 const constexpr size_t kDefaultUpdateFreq = 20;
@@ -34,4 +35,5 @@ private:
     size_t total_calls_ = 0;
 
     std::chrono::steady_clock::time_point last_update_time_;
+    std::mutex sync_;
 };

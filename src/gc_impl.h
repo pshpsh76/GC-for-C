@@ -25,34 +25,44 @@ public:
     GCImpl();
     ~GCImpl();
 
+    // Roots stuff
     void Init(const std::vector<GCRoot>& roots);
     void AddRoot(const GCRoot& root);
     void DeleteRoot(const GCRoot& root);
 
+    // Memory allocation functions
     void* Malloc(size_t size, FinalizerT finalizer);
     void* Calloc(size_t nmemb, size_t size, FinalizerT finalizer);
     void* Realloc(void* ptr, size_t size, FinalizerT finalizer);
     void Free(uintptr_t ptr);
 
+    // Automatic memory management
     GCScheduler& GetScheduler();
     const GCScheduler& GetScheduler() const;
     void DisableScheduler();
     void EnableScheduler();
 
+    // Thread safety
+    void Safepoint();
+
+    // Collect
     void Collect();
 
 private:
+    // Allocations helpers
     void CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer);
     void DeleteAllocation(uintptr_t ptr);
     bool IsValidAllocation(const Allocation& alloc);
-    void CollectPrepare();
     void SortAllocations();
 
+    // Mark Sweep part
+    void CollectPrepare();
     std::vector<Allocation*> MarkRoots();
     void MarkHeapAllocs(const std::vector<Allocation*>& live_allocs);
     void Sweep();
     void FreeAll();
 
+    // template Find allocation
     template <bool IsFast>
     Allocation* FindAllocation(uintptr_t ptr) {
         if (ptr < allocated_memory_[0].ptr) {
@@ -88,7 +98,7 @@ private:
     }
 
     std::vector<Allocation> allocated_memory_;
-    std::vector<Allocation>::iterator prev_find_;
+    std::vector<Allocation>::iterator prev_find_; // for fast find alloc, like cached value
     size_t timer_;
     std::vector<GCRoot> roots_;
     GCScheduler scheduler_;

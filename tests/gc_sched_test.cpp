@@ -53,7 +53,6 @@ TEST(AutoCollectorTest, TimeInterval) {
 
 TEST(AutoCollectorTest, Peak) {
     gc_set_collect_interval(1000 * 60 * 2);
-    gc_init(nullptr, 0);
     gc_reset_info();
     ResetCounter();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));

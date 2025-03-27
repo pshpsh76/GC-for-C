@@ -1,4 +1,5 @@
 #include "gc_pacer.h"
+#include <mutex>
 
 GCPacer::GCPacer(size_t threshold_bytes, size_t threshold_calls, double alpha, double peak_factor,
                  size_t update_frequency)
@@ -11,6 +12,7 @@ GCPacer::GCPacer(size_t threshold_bytes, size_t threshold_calls, double alpha, d
 }
 
 void GCPacer::Update(size_t allocated_bytes, size_t allocation_calls) {
+    std::lock_guard<std::mutex> lock(sync_);
     total_bytes_ += allocated_bytes;
     accumulated_bytes_ += allocated_bytes;
 
@@ -41,6 +43,7 @@ void GCPacer::Update(size_t allocated_bytes, size_t allocation_calls) {
 }
 
 bool GCPacer::ShouldTrigger() {
+    std::lock_guard<std::mutex> lock(sync_);
     double ratio_bytes = static_cast<double>(total_bytes_) / threshold_bytes_;
     double ratio_calls = static_cast<double>(total_calls_) / threshold_calls_;
     double base_trigger_ratio = std::max(ratio_bytes, ratio_calls);
@@ -52,6 +55,7 @@ bool GCPacer::ShouldTrigger() {
 }
 
 void GCPacer::Reset() {
+    std::lock_guard<std::mutex> lock(sync_);
     smoothed_rate_bytes_ = 0.0;
     smoothed_rate_calls_ = 0.0;
     instantaneous_rate_bytes_ = 0.0;

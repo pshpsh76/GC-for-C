@@ -1,9 +1,10 @@
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 
-static int& GetCounter() {
-    static int counter_finalizer = 0;
+static std::atomic<int>& GetCounter() {
+    static std::atomic<int> counter_finalizer = 0;
     return counter_finalizer;
 }
 

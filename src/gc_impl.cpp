@@ -49,8 +49,10 @@ void GCImpl::DeleteRoot(const GCRoot& root) {
 }
 
 void GCImpl::CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer) {
+    std::unique_lock<std::mutex> lock(lock_collect_);
     allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_});
     if (enable_auto_) {
+        lock.unlock();
         scheduler_.UpdateAllocationStats(size);
     }
 }
