@@ -38,7 +38,7 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
         gc_enable_auto();
     }
     for (auto _ : state) {
-        if (CallCollect) {
+        if constexpr (CallCollect) {
             state.PauseTiming();
         }
         for (size_t i = 0; i < kActionNum; ++i) {
