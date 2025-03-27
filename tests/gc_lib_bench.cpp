@@ -27,6 +27,7 @@ static void** SetupPartialWorkload(size_t num_objects, size_t fixed_size, double
 }
 
 static void BM_GcRealloc(benchmark::State& state) {
+    gc_disable_auto();
     const size_t initial_size = 64;
     for (auto _ : state) {
         state.PauseTiming();
@@ -43,6 +44,7 @@ static void BM_GcRealloc(benchmark::State& state) {
 BENCHMARK(BM_GcRealloc)->UseRealTime()->Unit(benchmark::kMicrosecond);
 
 static void BM_GcCollect_Drop5(benchmark::State& state) {
+    gc_disable_auto();
     const size_t num_objects = 10000;
     const double drop_probability = 0.05;
     std::mt19937 gen(kSeed);
@@ -74,6 +76,7 @@ static void BM_GcCollect_Drop5(benchmark::State& state) {
 BENCHMARK(BM_GcCollect_Drop5)->UseRealTime()->Unit(benchmark::kMicrosecond);
 
 static void BM_GcCollect_DropProb(benchmark::State& state) {
+    gc_disable_auto();
     const size_t num_objects = 10000;
     const size_t fixed_size = 64;
     double drop_probability = state.range(0) / 100.0;
@@ -105,6 +108,7 @@ BENCHMARK(BM_GcCollect_DropProb)
     ->Unit(benchmark::kMicrosecond);
 
 static void BM_GcSimulateActions(benchmark::State& state) {
+    gc_disable_auto();
     PerformMemoryActions<true>(state, 10000, 64, 1024);
 }
 BENCHMARK(BM_GcSimulateActions)->UseRealTime()->Unit(benchmark::kMicrosecond);
