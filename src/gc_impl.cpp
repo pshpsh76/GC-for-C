@@ -58,7 +58,9 @@ void GCImpl::CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer) 
     if (enable_auto_) {
         lock.unlock();
         scheduler_.UpdateAllocationStats(size);
+        lock.lock();
     }
+    ++timer_;
 }
 
 bool operator==(const Allocation& lhs, const Allocation& rhs) {

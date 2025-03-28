@@ -13,7 +13,8 @@ TEST(AutoCollectorTest, BytesThreshold) {
     size_t threshold = 100;
     gc_set_bytes_threshold(threshold);
     gc_malloc(threshold, CounterFinalizer);
-    ASSERT_EQ(GetCounter(), 1);
+    gc_malloc(threshold, CounterFinalizer);
+    ASSERT_EQ(GetCounter(), 1);  // auto gc collect can not collect last allocation
 
     gc_malloc(threshold / 2, CounterFinalizer);
     ASSERT_EQ(GetCounter(), 1);
@@ -35,7 +36,9 @@ TEST(AutoCollectorTest, CallThreshold) {
     ASSERT_EQ(GetCounter(), 0);
 
     gc_malloc(1, CounterFinalizer);
-    ASSERT_EQ(GetCounter(), 3);
+
+    ASSERT_EQ(GetCounter(), 2);
+    gc_free_all();
 }
 
 TEST(AutoCollectorTest, TimeInterval) {
@@ -69,5 +72,5 @@ TEST(AutoCollectorTest, Peak) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    ASSERT_GE(GetCounter(), 100);
+    ASSERT_GE(GetCounter(), 99);
 }

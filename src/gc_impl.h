@@ -35,6 +35,7 @@ public:
     void* Calloc(size_t nmemb, size_t size, FinalizerT finalizer);
     void* Realloc(void* ptr, size_t size, FinalizerT finalizer);
     void Free(uintptr_t ptr);
+    void FreeAll();
 
     // Automatic memory management
     GCScheduler& GetScheduler();
@@ -60,7 +61,6 @@ private:
     std::vector<Allocation*> MarkRoots();
     void MarkHeapAllocs(const std::vector<Allocation*>& live_allocs);
     void Sweep();
-    void FreeAll();
 
     // template Find allocation
     template <bool IsFast>
@@ -98,7 +98,7 @@ private:
     }
 
     std::vector<Allocation> allocated_memory_;
-    std::vector<Allocation>::iterator prev_find_; // for fast find alloc, like cached value
+    std::vector<Allocation>::iterator prev_find_;  // for fast find alloc, like cached value
     size_t timer_;
     std::vector<GCRoot> roots_;
     GCScheduler scheduler_;

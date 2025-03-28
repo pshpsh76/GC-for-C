@@ -23,6 +23,7 @@ void *gc_calloc_default(size_t nmemb, size_t size);
 void *gc_realloc(void *ptr, size_t size, FinalizerT finalizer);
 void *gc_realloc_default(void *ptr, size_t size);
 void gc_free(void *ptr);
+void gc_free_all();
 void gc_collect();
 void gc_add_root(GCRoot root);
 void gc_delete_root(GCRoot root);

@@ -50,6 +50,10 @@ void gc_free(void* ptr) {
     gc_instance->Free(reinterpret_cast<uintptr_t>(ptr));
 }
 
+void gc_free_all() {
+    gc_instance->FreeAll();
+}
+
 void gc_collect() {
     gc_instance->Collect();
 }
