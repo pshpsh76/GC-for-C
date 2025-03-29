@@ -8,7 +8,7 @@
 #include "gc_fwd.h"
 #include "gc_pacer.h"
 
-const constexpr size_t kDefaultThresholdBytes = 1024 * 1024, kDefaultThreasholdCalls = 1000;
+const constexpr size_t kDefaultThresholdBytes = 1024 * 1024 * 8, kDefaultThreasholdCalls = 1000 * 8;
 const constexpr std::chrono::milliseconds kDefaultGCInterval =
     std::chrono::milliseconds(1000) * 60 * 2;  // 2 minutes
 

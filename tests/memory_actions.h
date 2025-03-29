@@ -96,6 +96,6 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
     for (size_t i = 0; i < num_objects; ++i) {
         root_array[i] = nullptr;
     }
-    gc_collect();
+    
     delete[] root_array;
 }

@@ -106,6 +106,7 @@ private:
 
     std::vector<Allocation> allocated_memory_;
     std::vector<Allocation>::iterator prev_find_;  // for fast find alloc, like cached value
+    size_t last_size_ = 0;
     size_t timer_;
     std::vector<GCRoot> roots_;
     GCScheduler scheduler_;

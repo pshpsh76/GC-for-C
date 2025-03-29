@@ -71,9 +71,6 @@ void GCScheduler::SetThresholdCalls(size_t calls) {
 void GCScheduler::UpdateAllocationStats(size_t size) {
     pacer_.Update(size, 1);
     if (pacer_.ShouldTrigger()) {
-        // std::lock_guard<std::mutex> lock(lock_scheduler_);
-        // gc_->Collect();
-        // ResetStats();
         loop_cv_.notify_one();
     }
 }

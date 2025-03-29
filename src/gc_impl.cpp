@@ -54,12 +54,11 @@ void GCImpl::DeleteRoot(const GCRoot& root) {
 }
 
 void GCImpl::CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer) {
+    Safepoint();
     std::unique_lock<std::mutex> lock(lock_collect_);
     allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_});
     if (enable_auto_) {
-        lock.unlock();
         scheduler_.UpdateAllocationStats(size);
-        lock.lock();
     }
     ++timer_;
 }
@@ -74,9 +73,13 @@ void GCImpl::DeleteAllocation(uintptr_t ptr) {
     std::erase(allocated_memory_, fake_alloc);
 }
 
+bool operator<(const Allocation& lhs, const Allocation& rhs) {
+    return lhs.ptr < rhs.ptr;
+}
+
 void GCImpl::SortAllocations() {
-    std::sort(allocated_memory_.begin(), allocated_memory_.end(),
-              [](const Allocation& lhs, const Allocation& rhs) { return lhs.ptr < rhs.ptr; });
+    std::sort(allocated_memory_.begin() + last_size_, allocated_memory_.end());
+    std::inplace_merge(allocated_memory_.begin(), allocated_memory_.begin() + last_size_, allocated_memory_.end());
 }
 
 bool GCImpl::IsValidAllocation(const Allocation& alloc) {
@@ -163,6 +166,7 @@ void GCImpl::StopWorld() {
 
 void GCImpl::ResumeWorld() {
     should_stop_ = false;
+    stopped_ = 0;
     stopping_thread_.notify_all();
 }
 
@@ -204,17 +208,16 @@ void GCImpl::MarkHeapAllocs(const std::vector<Allocation*>& live_allocs) {
 }
 
 void GCImpl::Sweep() {
-    for (auto it = allocated_memory_.begin(); it != allocated_memory_.end();) {
-        if (!IsValidAllocation(*it)) {
-            std::swap(*it, allocated_memory_.back());
-            Allocation alloc = allocated_memory_.back();
-            alloc.finalizer(reinterpret_cast<void*>(alloc.ptr), alloc.size);
-            std::free(reinterpret_cast<void*>(alloc.ptr));
-            allocated_memory_.pop_back();
-        } else {
-            ++it;
-        }
+    auto non_valid =
+        std::stable_partition(allocated_memory_.begin(), allocated_memory_.end(),
+                              [this](const Allocation& alloc) { return IsValidAllocation(alloc); });
+    for (auto it = non_valid; it != allocated_memory_.end(); ++it) {
+        Allocation& alloc = *it;
+        alloc.finalizer(reinterpret_cast<void*>(alloc.ptr), alloc.size);
+        std::free(reinterpret_cast<void*>(alloc.ptr));
     }
+    allocated_memory_.erase(non_valid, allocated_memory_.end());
+    last_size_ = allocated_memory_.size();
 }
 
 void GCImpl::Collect() {
