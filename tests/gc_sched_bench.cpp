@@ -1,6 +1,5 @@
 #include <benchmark/benchmark.h>
 #include <vector>
-#include <random>
 
 #include "gc.h"
 #include "memory_actions.h"

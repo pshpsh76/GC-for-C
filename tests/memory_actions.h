@@ -35,6 +35,7 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
     GCRoot root[] = {{static_cast<void*>(root_array), num_objects * sizeof(void*)}};
     gc_init(root, 1);
     if constexpr (!CallCollect) {
+        gc_register_thread();
         gc_enable_auto();
     }
     for (auto _ : state) {
@@ -42,6 +43,9 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
             state.PauseTiming();
         }
         for (size_t i = 0; i < kActionNum; ++i) {
+            if constexpr (!CallCollect) {
+                gc_safepoint();
+            }
             size_t ind;
             size_t try_cnt = 0;
             do {
@@ -49,7 +53,6 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
                 ind = index_dist(gen);
                 if (try_cnt > 100) {
                     break;
-                    ;
                 }
             } while (root_array[ind] == nullptr || sizes[ind] <= 1);
             if (try_cnt > 100) {

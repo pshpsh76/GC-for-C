@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 uintptr_t Aligned(uintptr_t ptr) {
@@ -54,7 +55,7 @@ void GCImpl::DeleteRoot(const GCRoot& root) {
 
 void GCImpl::CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer) {
     std::unique_lock<std::mutex> lock(lock_collect_);
-    allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_ + 1});
+    allocated_memory_.push_back(Allocation{ptr, size, finalizer, timer_});
     if (enable_auto_) {
         lock.unlock();
         scheduler_.UpdateAllocationStats(size);
@@ -79,7 +80,7 @@ void GCImpl::SortAllocations() {
 }
 
 bool GCImpl::IsValidAllocation(const Allocation& alloc) {
-    return alloc.last_valid_time == timer_;
+    return alloc.last_valid_time >= timer_;
 }
 
 void* GCImpl::Malloc(size_t size, FinalizerT finalizer) {
@@ -138,6 +139,33 @@ void GCImpl::EnableScheduler() {
     enable_auto_ = true;
 }
 
+void GCImpl::Safepoint() {
+    if (!should_stop_.load()) {
+        return;
+    }
+    std::unique_lock<std::mutex> lock(lock_collect_);
+    ++stopped_;
+    stopping_thread_.wait(lock, [this]() { return !should_stop_.load(); });
+}
+
+void GCImpl::RegisterThread() {
+    std::lock_guard<std::mutex> lock(threads_registering_);
+    threads_.insert(std::this_thread::get_id());
+    threads_count_ = threads_.size();
+}
+
+void GCImpl::StopWorld() {
+    should_stop_ = true;
+    while (stopped_ < threads_count_) {
+        std::this_thread::yield();
+    }
+}
+
+void GCImpl::ResumeWorld() {
+    should_stop_ = false;
+    stopping_thread_.notify_all();
+}
+
 void GCImpl::CollectPrepare() {
     ++timer_;
     SortAllocations();
@@ -190,8 +218,10 @@ void GCImpl::Sweep() {
 }
 
 void GCImpl::Collect() {
+    StopWorld();
     std::lock_guard<std::mutex> lock(lock_collect_);
     CollectPrepare();
     MarkHeapAllocs(MarkRoots());
     Sweep();
+    ResumeWorld();
 }

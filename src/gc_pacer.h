@@ -14,6 +14,9 @@ public:
     void Update(size_t allocated_bytes, size_t allocation_calls);
     bool ShouldTrigger();
     void Reset();
+    void SetThresholdBytes(size_t bytes);
+    void SetThresholdCalls(size_t calls);
+
     size_t threshold_bytes_;
     size_t threshold_calls_;
 

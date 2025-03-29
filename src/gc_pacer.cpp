@@ -67,3 +67,13 @@ void GCPacer::Reset() {
     total_calls_ = 0;
     last_update_time_ = std::chrono::steady_clock::now();
 }
+
+void GCPacer::SetThresholdBytes(size_t bytes) {
+    std::lock_guard<std::mutex> lock(sync_);
+    threshold_bytes_ = bytes;
+}
+
+void GCPacer::SetThresholdCalls(size_t calls) {
+    std::lock_guard<std::mutex> lock(sync_);
+    threshold_calls_ = calls;
+}

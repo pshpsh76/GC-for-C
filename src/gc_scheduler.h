@@ -39,7 +39,7 @@ private:
     GCImpl* gc_;
     GCPacer pacer_;
     std::chrono::milliseconds collection_interval_;
-    std::atomic<bool> stop_flag_;
+    std::atomic<bool> stop_flag_, params_changed_;
     std::thread scheduler_thread_;
     std::mutex lock_scheduler_;
     std::condition_variable loop_cv_;

@@ -101,6 +101,14 @@ void gc_enable_auto() {
     gc_instance->EnableScheduler();
 }
 
+void gc_safepoint() {
+    gc_instance->Safepoint();
+}
+
+void gc_register_thread() {
+    gc_instance->RegisterThread();
+}
+
 #ifdef __cplusplus
 }
 #endif

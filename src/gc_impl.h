@@ -1,8 +1,12 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <thread>
+#include <unordered_set>
 #include <vector>
 #include "gc_fwd.h"
 #include "gc.h"
@@ -45,6 +49,7 @@ public:
 
     // Thread safety
     void Safepoint();
+    void RegisterThread();
 
     // Collect
     void Collect();
@@ -57,6 +62,8 @@ private:
     void SortAllocations();
 
     // Mark Sweep part
+    void StopWorld();
+    void ResumeWorld();
     void CollectPrepare();
     std::vector<Allocation*> MarkRoots();
     void MarkHeapAllocs(const std::vector<Allocation*>& live_allocs);
@@ -103,5 +110,11 @@ private:
     std::vector<GCRoot> roots_;
     GCScheduler scheduler_;
     bool enable_auto_ = true;
-    std::mutex lock_collect_;
+
+    std::atomic<bool> should_stop_ = false;
+    std::atomic<size_t> stopped_ = 0;
+    std::mutex lock_collect_, threads_registering_;
+    std::condition_variable stopping_thread_;
+    std::unordered_set<std::thread::id> threads_;
+    std::atomic<size_t> threads_count_;
 };

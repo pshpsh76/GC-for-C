@@ -48,6 +48,7 @@ void GCScheduler::SetCollectionInterval(std::chrono::milliseconds collection_int
         std::lock_guard<std::mutex> lock(lock_scheduler_);
         collection_interval_ = collection_interval;
     }
+    params_changed_ = true;
     loop_cv_.notify_one();
 }
 
@@ -56,7 +57,7 @@ size_t GCScheduler::GetThresholdBytes() {
 }
 
 void GCScheduler::SetThresholdBytes(size_t bytes) {
-    pacer_.threshold_bytes_ = bytes;
+    pacer_.SetThresholdBytes(bytes);
 }
 
 size_t GCScheduler::GetThresholdCalls() {
@@ -64,23 +65,26 @@ size_t GCScheduler::GetThresholdCalls() {
 }
 
 void GCScheduler::SetThresholdCalls(size_t calls) {
-    pacer_.threshold_calls_ = calls;
+    pacer_.SetThresholdCalls(calls);
 }
 
 void GCScheduler::UpdateAllocationStats(size_t size) {
     pacer_.Update(size, 1);
     if (pacer_.ShouldTrigger()) {
-        std::lock_guard<std::mutex> lock(lock_scheduler_);
-        gc_->Collect();
-        ResetStats();
+        // std::lock_guard<std::mutex> lock(lock_scheduler_);
+        // gc_->Collect();
+        // ResetStats();
+        loop_cv_.notify_one();
     }
 }
 
 void GCScheduler::SchedulerLoop() {
     std::unique_lock<std::mutex> lock(lock_scheduler_);
     while (!stop_flag_.load()) {
-        auto interval = collection_interval_;
-        loop_cv_.wait_for(lock, interval);
+        params_changed_ = false;
+        loop_cv_.wait_for(lock, collection_interval_, [this]() {
+            return stop_flag_.load() || pacer_.ShouldTrigger() || params_changed_.load();
+        });
         if (stop_flag_.load()) {
             break;
         }
