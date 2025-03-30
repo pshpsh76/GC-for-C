@@ -35,6 +35,9 @@ void GCScheduler::Stop() {
 void GCScheduler::Shutdown() {
     shutdown_ = true;
     loop_cv_.notify_one();
+    if (scheduler_thread_.joinable()) {
+        scheduler_thread_.join();
+    }
 }
 
 void GCScheduler::TriggerCollect() {
@@ -86,7 +89,7 @@ void GCScheduler::UpdateAllocationStats(size_t size) {
 
 void GCScheduler::SchedulerLoop() {
     while (!shutdown_) {
-        
+
         std::unique_lock<std::mutex> lock(lock_scheduler_);
         params_changed_ = false;
         wait_collect_.notify_one();

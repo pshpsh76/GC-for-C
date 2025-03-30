@@ -29,7 +29,7 @@ void GCImpl::FreeAll() {
 }
 
 GCImpl::~GCImpl() {
-    scheduler_.Stop();
+    scheduler_.Shutdown();
     FreeAll();
 }
 
@@ -133,6 +133,7 @@ const GCScheduler& GCImpl::GetScheduler() const {
 }
 
 void GCImpl::DisableScheduler() {
+    std::lock_guard<std::mutex> lock(threads_registering_);
     scheduler_.Stop();
     threads_.clear();
     threads_count_ = 0;
