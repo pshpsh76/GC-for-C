@@ -1,4 +1,6 @@
+#include <chrono>
 #include <cstddef>
+#include <thread>
 #include <gtest/gtest.h>
 #include "gc.h"
 #include "utils.h"
@@ -25,7 +27,7 @@ TEST(GarbageCollectorTest, MultithreadedAllocation) {
         th.join();
     }
     gc_collect_blocked();
-
+    wait_bit();
     ASSERT_EQ(GetCounter(), kThreads * k_alloc_per_thread);
 }
 
@@ -70,6 +72,7 @@ TEST(GarbageCollectorTest, MultithreadedStackRoots) {
     }
 
     gc_collect_blocked();
+    wait_bit();
     ASSERT_EQ(GetCounter(), kThreads * per_thread);
 }
 
@@ -101,5 +104,6 @@ TEST(GarbageCollectorTest, ParallelCollectDuringAlloc) {
     running = false;
     gc_disable_auto();
     gc_collect_blocked();
+    wait_bit();
     ASSERT_GE(GetCounter(), kThreads * k_iterations);
 }

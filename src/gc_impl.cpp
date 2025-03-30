@@ -151,6 +151,7 @@ void GCImpl::Safepoint() {
     std::unique_lock<std::mutex> lock(lock_collect_);
     ++stopped_;
     stopping_thread_.wait(lock, [this]() { return !should_stop_.load(); });
+    --stopped_;
 }
 
 void GCImpl::RegisterThread() {
@@ -174,7 +175,6 @@ void GCImpl::StopWorld() {
 
 void GCImpl::ResumeWorld() {
     should_stop_ = false;
-    stopped_ = 0;
     stopping_thread_.notify_all();
 }
 

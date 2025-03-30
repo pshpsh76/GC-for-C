@@ -86,9 +86,10 @@ void GCScheduler::UpdateAllocationStats(size_t size) {
 
 void GCScheduler::SchedulerLoop() {
     while (!shutdown_) {
+        
         std::unique_lock<std::mutex> lock(lock_scheduler_);
         params_changed_ = false;
-
+        wait_collect_.notify_one();
         bool notified = loop_cv_.wait_for(lock, collection_interval_, [this]() {
             return stop_flag_.load() || params_changed_.load() || collect_triggered_.load() ||
                    shutdown_.load() || pacer_.ShouldTrigger();
