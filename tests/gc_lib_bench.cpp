@@ -37,11 +37,11 @@ static void BM_GcRealloc(benchmark::State& state) {
             size_t new_size = initial_size + (i % 10) * 10;
             ptr = gc_realloc_default(ptr, new_size);
         }
-        gc_collect();
+        gc_collect_blocked();
     }
     state.SetItemsProcessed(100 * state.iterations());
 }
-BENCHMARK(BM_GcRealloc)->UseRealTime()->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_GcRealloc)->UseRealTime()->MeasureProcessCPUTime()->Unit(benchmark::kMicrosecond);
 
 static void BM_GcCollect_Drop5(benchmark::State& state) {
     gc_disable_auto();
@@ -69,11 +69,14 @@ static void BM_GcCollect_Drop5(benchmark::State& state) {
 
         state.ResumeTiming();
 
-        gc_collect();
+        gc_collect_blocked();
     }
     state.SetItemsProcessed(num_objects * state.iterations());
 }
-BENCHMARK(BM_GcCollect_Drop5)->UseRealTime()->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_GcCollect_Drop5)
+    ->UseRealTime()
+    ->MeasureProcessCPUTime()
+    ->Unit(benchmark::kMicrosecond);
 
 static void BM_GcCollect_DropProb(benchmark::State& state) {
     gc_disable_auto();
@@ -88,7 +91,7 @@ static void BM_GcCollect_DropProb(benchmark::State& state) {
         gc_init(roots, 1);
         state.ResumeTiming();
 
-        gc_collect();
+        gc_collect_blocked();
 
         state.PauseTiming();
         delete[] root_array;
@@ -105,12 +108,16 @@ BENCHMARK(BM_GcCollect_DropProb)
     ->Arg(70)
     ->Arg(100)
     ->UseRealTime()
+    ->MeasureProcessCPUTime()
     ->Unit(benchmark::kMicrosecond);
 
 static void BM_GcSimulateActions(benchmark::State& state) {
     gc_disable_auto();
     PerformMemoryActions<true>(state, 10000, 64, 1024);
 }
-BENCHMARK(BM_GcSimulateActions)->UseRealTime()->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_GcSimulateActions)
+    ->UseRealTime()
+    ->MeasureProcessCPUTime()
+    ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

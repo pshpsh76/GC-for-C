@@ -29,6 +29,8 @@ void gc_free_all();
 
 // trigger garbage collecting
 void gc_collect();
+void gc_wait_collect();
+void gc_collect_blocked();
 
 // root managing
 void gc_add_root(GCRoot root);
@@ -48,6 +50,7 @@ void gc_enable_auto();
 // threads safety
 void gc_safepoint();
 void gc_register_thread();
+void gc_deregister_thread();
 #ifdef __cplusplus
 }
 #endif

@@ -1,9 +1,11 @@
+#include <chrono>
 #include <cstddef>
+#include <thread>
 #include <gtest/gtest.h>
 #include "gc.h"
 #include "utils.h"
 
-TEST(GarbageCollectorTest, SimpleAllocation) {
+TEST(GСLibTest, SimpleAllocation) {
     gc_disable_auto();
     gc_init(nullptr, 0);
 
@@ -13,7 +15,7 @@ TEST(GarbageCollectorTest, SimpleAllocation) {
     gc_free(ptr);
 }
 
-TEST(GarbageCollectorTest, DoubleFree) {
+TEST(GСLibTest, DoubleFree) {
     gc_disable_auto();
     gc_init(nullptr, 0);
 
@@ -22,22 +24,22 @@ TEST(GarbageCollectorTest, DoubleFree) {
     ASSERT_NO_THROW(gc_free(ptr));
 }
 
-TEST(GarbageCollectorTest, Collection) {
+TEST(GСLibTest, Collection) {
     gc_disable_auto();
     gc_init(nullptr, 0);
 
     gc_malloc_default(256);
-    ASSERT_NO_THROW(gc_collect());
+    ASSERT_NO_THROW(gc_collect_blocked());
 }
 
-TEST(GarbageCollectorTest, LeakWithoutCollect) {
+TEST(GСLibTest, LeakWithoutCollect) {
     gc_disable_auto();
     gc_init(nullptr, 0);
 
     gc_malloc_default(128);
 }
 
-TEST(GarbageCollectorTest, RootNotCollected) {
+TEST(GСLibTest, RootNotCollected) {
     gc_disable_auto();
     int* arr = static_cast<int*>(gc_malloc_default(10 * sizeof(int)));
     for (int i = 0; i < 10; i++) {
@@ -47,12 +49,12 @@ TEST(GarbageCollectorTest, RootNotCollected) {
     GCRoot root = {reinterpret_cast<void*>(&interior), sizeof(void*)};
     gc_add_root(root);
 
-    gc_collect();
+    gc_collect_blocked();
 
     ASSERT_EQ(*interior, 3);
 }
 
-TEST(GarbageCollectorTest, LivingAllocationNotCollected) {
+TEST(GСLibTest, LivingAllocationNotCollected) {
     gc_disable_auto();
     int* num;
     GCRoot roots[] = {{reinterpret_cast<void*>(&num), sizeof(num)}};
@@ -60,12 +62,12 @@ TEST(GarbageCollectorTest, LivingAllocationNotCollected) {
 
     num = static_cast<int*>(gc_malloc_default(sizeof(*num)));
     *num = 12345;
-    gc_collect();
+    gc_collect_blocked();
 
     ASSERT_EQ(*num, 12345);
 }
 
-TEST(GarbageCollectorTest, Array) {
+TEST(GСLibTest, Array) {
     gc_disable_auto();
     ResetCounter();
     int* array;
@@ -81,17 +83,17 @@ TEST(GarbageCollectorTest, Array) {
     constexpr size_t kOffset = 243;
     array += kOffset;
     ASSERT_EQ(GetCounter(), 0);
-    gc_collect();
+    gc_collect_blocked();
     ASSERT_EQ(GetCounter(), 0);
     for (size_t i = kOffset; i < kArraySize; ++i) {
         ASSERT_EQ(array[i - kOffset], static_cast<int>(i));
     }
     array = nullptr;
-    gc_collect();
+    gc_collect_blocked();
     ASSERT_EQ(GetCounter(), 1);
 }
 
-TEST(GarbageCollectorTest, ManyStackRoots) {
+TEST(GСLibTest, ManyStackRoots) {
     gc_disable_auto();
     ResetCounter();
     const int num_objects = 1000;
@@ -105,7 +107,7 @@ TEST(GarbageCollectorTest, ManyStackRoots) {
         *objects[i] = i;
     }
 
-    gc_collect();
+    gc_collect_blocked();
     ASSERT_EQ(GetCounter(), 0);
 
     for (int i = 0; i < num_objects; ++i) {
@@ -113,11 +115,11 @@ TEST(GarbageCollectorTest, ManyStackRoots) {
         objects[i] = nullptr;
     }
 
-    gc_collect();
+    gc_collect_blocked();
     ASSERT_EQ(GetCounter(), num_objects);
 }
 
-TEST(GarbageCollectorTest, CyclicReferencesCollected) {
+TEST(GСLibTest, CyclicReferencesCollected) {
     gc_disable_auto();
     gc_init(nullptr, 0);
 
@@ -134,12 +136,12 @@ TEST(GarbageCollectorTest, CyclicReferencesCollected) {
     node1 = nullptr;
     node2 = nullptr;
 
-    gc_collect();
+    gc_collect_blocked();
 
     ASSERT_EQ(GetCounter(), 2);
 }
 
-TEST(GarbageCollectorTest, ComplexDataStructureCollected) {
+TEST(GСLibTest, ComplexDataStructureCollected) {
     gc_disable_auto();
     gc_init(nullptr, 0);
 
@@ -158,12 +160,12 @@ TEST(GarbageCollectorTest, ComplexDataStructureCollected) {
 
     left->right = root;
 
-    gc_collect();
+    gc_collect_blocked();
 
     ASSERT_EQ(GetCounter(), 3);
 }
 
-TEST(GarbageCollectorTest, Realloc) {
+TEST(GСLibTest, Realloc) {
     gc_disable_auto();
     int* ptr;
     GCRoot roots[] = {{reinterpret_cast<void*>(&ptr), sizeof(void*)}};
@@ -179,7 +181,7 @@ TEST(GarbageCollectorTest, Realloc) {
         ptr[i] = i;
     }
 
-    gc_collect();
+    gc_collect_blocked();
 
     for (int i = 0; i < 8; i++) {
         ASSERT_EQ(ptr[i], i);

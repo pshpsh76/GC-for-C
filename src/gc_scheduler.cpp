@@ -9,34 +9,43 @@ GCScheduler::GCScheduler(GCImpl* gc, size_t threshold_bytes, size_t threshold_ca
       pacer_(threshold_bytes, threshold_calls),
       collection_interval_(collection_interval),
       stop_flag_(false) {
+    Start();
 }
 
 GCScheduler::~GCScheduler() {
-    Stop();
+    Shutdown();
     if (scheduler_thread_.joinable()) {
         scheduler_thread_.join();
     }
 }
 
 void GCScheduler::Start() {
-    std::unique_lock<std::mutex> lock(lock_scheduler_);
-    if (scheduler_thread_.joinable()) {
-        stop_flag_ = true;
-        lock.unlock();
-        loop_cv_.notify_one();
-        scheduler_thread_.join();
-        lock.lock();
-    }
     stop_flag_ = false;
+    if (scheduler_thread_.joinable()) {
+        return;
+    }
     scheduler_thread_ = std::thread(&GCScheduler::SchedulerLoop, this);
 }
 
 void GCScheduler::Stop() {
-    {
-        std::lock_guard<std::mutex> lock(lock_scheduler_);
-        stop_flag_ = true;
-    }
+    stop_flag_ = true;
     loop_cv_.notify_one();
+}
+
+void GCScheduler::Shutdown() {
+    shutdown_ = true;
+    loop_cv_.notify_one();
+}
+
+void GCScheduler::TriggerCollect() {
+    collect_triggered_ = true;
+    loop_cv_.notify_one();
+}
+
+void GCScheduler::WaitCollect() {
+    std::unique_lock<std::mutex> lock(wait_mutex_);
+    wait_collect_.wait(lock, [this] { return collect_done_.load(); });
+    collect_done_ = false;
 }
 
 std::chrono::milliseconds GCScheduler::GetCollectionInterval() {
@@ -76,20 +85,26 @@ void GCScheduler::UpdateAllocationStats(size_t size) {
 }
 
 void GCScheduler::SchedulerLoop() {
-    std::unique_lock<std::mutex> lock(lock_scheduler_);
-    while (!stop_flag_.load()) {
+    while (!shutdown_) {
+        std::unique_lock<std::mutex> lock(lock_scheduler_);
         params_changed_ = false;
-        loop_cv_.wait_for(lock, collection_interval_, [this]() {
-            return stop_flag_.load() || pacer_.ShouldTrigger() || params_changed_.load();
+
+        bool notified = loop_cv_.wait_for(lock, collection_interval_, [this]() {
+            return stop_flag_.load() || params_changed_.load() || collect_triggered_.load() ||
+                   shutdown_.load() || pacer_.ShouldTrigger();
         });
-        if (stop_flag_.load()) {
-            break;
+        lock.unlock();
+        if ((!stop_flag_ && (pacer_.ShouldTrigger() || !notified)) || collect_triggered_.load()) {
+            collect_done_ = false;
+            gc_->Collect();
+            collect_done_ = true;
+            wait_collect_.notify_one();
+            ResetStats();
         }
-        gc_->Collect();
-        ResetStats();
     }
 }
 
 void GCScheduler::ResetStats() {
+    collect_triggered_ = false;
     pacer_.Reset();
 }

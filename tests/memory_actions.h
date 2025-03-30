@@ -90,12 +90,13 @@ void PerformMemoryActions(benchmark::State& state, size_t num_objects, size_t mi
         }
         if constexpr (CallCollect) {
             state.ResumeTiming();
-            gc_collect();
+            gc_collect_blocked();
         }
     }
+    gc_disable_auto();
     for (size_t i = 0; i < num_objects; ++i) {
         root_array[i] = nullptr;
     }
-    
+    gc_collect_blocked();
     delete[] root_array;
 }

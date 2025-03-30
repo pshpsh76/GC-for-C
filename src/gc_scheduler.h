@@ -8,7 +8,7 @@
 #include "gc_fwd.h"
 #include "gc_pacer.h"
 
-const constexpr size_t kDefaultThresholdBytes = 1024 * 1024 * 8, kDefaultThreasholdCalls = 1000 * 8;
+const constexpr size_t kDefaultThresholdBytes = 1024 * 1024, kDefaultThreasholdCalls = 1000;
 const constexpr std::chrono::milliseconds kDefaultGCInterval =
     std::chrono::milliseconds(1000) * 60 * 2;  // 2 minutes
 
@@ -22,6 +22,10 @@ public:
     void UpdateAllocationStats(size_t size);
     void Start();
     void Stop();
+    void Shutdown();
+
+    void TriggerCollect();
+    void WaitCollect();
 
     std::chrono::milliseconds GetCollectionInterval();
     void SetCollectionInterval(std::chrono::milliseconds collection_interval);
@@ -31,6 +35,7 @@ public:
 
     size_t GetThresholdCalls();
     void SetThresholdCalls(size_t calls);
+
     void ResetStats();
 
 private:
@@ -39,8 +44,10 @@ private:
     GCImpl* gc_;
     GCPacer pacer_;
     std::chrono::milliseconds collection_interval_;
-    std::atomic<bool> stop_flag_, params_changed_;
+    std::atomic<bool> stop_flag_, params_changed_, collect_triggered_ = false,
+                                                   collect_done_ = false, shutdown_ = false;
     std::thread scheduler_thread_;
     std::mutex lock_scheduler_;
-    std::condition_variable loop_cv_;
+    std::mutex wait_mutex_;
+    std::condition_variable loop_cv_, wait_collect_;
 };

@@ -5,7 +5,7 @@
 #include <thread>
 #include <chrono>
 
-TEST(AutoCollectorTest, BytesThreshold) {
+TEST(GCAutoTest, BytesThreshold) {
     gc_init(nullptr, 0);
     gc_enable_auto();
     gc_reset_info();
@@ -23,7 +23,7 @@ TEST(AutoCollectorTest, BytesThreshold) {
     gc_free_all();
 }
 
-TEST(AutoCollectorTest, CallThreshold) {
+TEST(GCAutoTest, CallThreshold) {
     gc_init(nullptr, 0);
     gc_reset_info();
     ResetCounter();
@@ -44,7 +44,7 @@ TEST(AutoCollectorTest, CallThreshold) {
     gc_free_all();
 }
 
-TEST(AutoCollectorTest, TimeInterval) {
+TEST(GCAutoTest, TimeInterval) {
     gc_init(nullptr, 0);
     gc_reset_info();
     ResetCounter();
@@ -57,7 +57,7 @@ TEST(AutoCollectorTest, TimeInterval) {
     ASSERT_EQ(GetCounter(), 1);
 }
 
-TEST(AutoCollectorTest, Peak) {
+TEST(GCAutoTest, Peak) {
     gc_set_collect_interval(1000 * 60 * 2);
     gc_reset_info();
     ResetCounter();
@@ -68,7 +68,7 @@ TEST(AutoCollectorTest, Peak) {
 
     for (int i = 0; i < 100000; ++i) {
         if (i < 100) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
         gc_malloc(1, CounterFinalizer);
     }

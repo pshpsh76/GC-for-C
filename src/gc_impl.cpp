@@ -18,7 +18,6 @@ static uintptr_t GetMemoryPtr(uintptr_t ptr) {
 }
 
 GCImpl::GCImpl() : timer_(0), scheduler_(this) {
-    scheduler_.Start();
 }
 
 void GCImpl::FreeAll() {
@@ -79,7 +78,8 @@ bool operator<(const Allocation& lhs, const Allocation& rhs) {
 
 void GCImpl::SortAllocations() {
     std::sort(allocated_memory_.begin() + last_size_, allocated_memory_.end());
-    std::inplace_merge(allocated_memory_.begin(), allocated_memory_.begin() + last_size_, allocated_memory_.end());
+    std::inplace_merge(allocated_memory_.begin(), allocated_memory_.begin() + last_size_,
+                       allocated_memory_.end());
 }
 
 bool GCImpl::IsValidAllocation(const Allocation& alloc) {
@@ -134,6 +134,8 @@ const GCScheduler& GCImpl::GetScheduler() const {
 
 void GCImpl::DisableScheduler() {
     scheduler_.Stop();
+    threads_.clear();
+    threads_count_ = 0;
     enable_auto_ = false;
 }
 
@@ -154,6 +156,12 @@ void GCImpl::Safepoint() {
 void GCImpl::RegisterThread() {
     std::lock_guard<std::mutex> lock(threads_registering_);
     threads_.insert(std::this_thread::get_id());
+    threads_count_ = threads_.size();
+}
+
+void GCImpl::DeregisterThread() {
+    std::lock_guard<std::mutex> lock(threads_registering_);
+    threads_.erase(std::this_thread::get_id());
     threads_count_ = threads_.size();
 }
 
@@ -222,9 +230,10 @@ void GCImpl::Sweep() {
 
 void GCImpl::Collect() {
     StopWorld();
-    std::lock_guard<std::mutex> lock(lock_collect_);
+    std::unique_lock<std::mutex> lock(lock_collect_);
     CollectPrepare();
     MarkHeapAllocs(MarkRoots());
     Sweep();
+    lock.unlock();
     ResumeWorld();
 }

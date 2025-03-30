@@ -50,6 +50,7 @@ public:
     // Thread safety
     void Safepoint();
     void RegisterThread();
+    void DeregisterThread();
 
     // Collect
     void Collect();

@@ -55,7 +55,16 @@ void gc_free_all() {
 }
 
 void gc_collect() {
-    gc_instance->Collect();
+    gc_instance->GetScheduler().TriggerCollect();
+}
+
+void gc_wait_collect() {
+    gc_instance->GetScheduler().WaitCollect();
+}
+
+void gc_collect_blocked() {
+    gc_collect();
+    gc_wait_collect();
 }
 
 void gc_add_root(GCRoot root) {
@@ -107,6 +116,10 @@ void gc_safepoint() {
 
 void gc_register_thread() {
     gc_instance->RegisterThread();
+}
+
+void gc_deregister_thread() {
+    gc_instance->DeregisterThread();
 }
 
 #ifdef __cplusplus
