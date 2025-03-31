@@ -30,9 +30,9 @@ public:
     ~GCImpl();
 
     // Roots stuff
-    void Init(const std::vector<GCRoot>& roots);
-    void AddRoot(const GCRoot& root);
-    void DeleteRoot(const GCRoot& root);
+    void Init(const std::vector<Allocation>& roots);
+    void AddRoot(const Allocation& root);
+    void DeleteRoot(const Allocation& root);
 
     // Memory allocation functions
     void* Malloc(size_t size, FinalizerT finalizer);
@@ -68,6 +68,7 @@ private:
     void CollectPrepare();
     std::vector<Allocation*> MarkRoots();
     void MarkHeapAllocs(const std::vector<Allocation*>& live_allocs);
+    void MarkParallel();
     void Sweep();
 
     // template Find allocation
@@ -80,20 +81,20 @@ private:
 
         std::vector<Allocation>::iterator begin_search = allocated_memory_.begin(),
                                           end_search = allocated_memory_.end();
-        if constexpr (IsFast) {
-            if (prev_find_ != allocated_memory_.end()) {
-                if (prev_find_->ptr <= ptr) {
-                    begin_search = prev_find_;
-                } else {
-                    end_search = prev_find_;
-                }
+        if (prev_find_ != allocated_memory_.end() && prev_find_.base() != nullptr) {
+            if (prev_find_->ptr <= ptr) {
+                begin_search = prev_find_;
+            } else {
+                end_search = prev_find_;
             }
         }
         auto it = std::upper_bound(
             begin_search, end_search, fake,
             [](const Allocation& lhs, const Allocation& rhs) { return lhs.ptr < rhs.ptr; });
         if (it == allocated_memory_.begin()) {
-            prev_find_ = allocated_memory_.end();
+            if constexpr (IsFast) {
+                prev_find_ = allocated_memory_.end();
+            }
             return nullptr;
         }
         --it;
@@ -109,7 +110,7 @@ private:
     std::vector<Allocation>::iterator prev_find_;  // for fast find alloc, like cached value
     size_t last_size_ = 0;
     size_t timer_;
-    std::vector<GCRoot> roots_;
+    std::vector<Allocation> roots_;
     GCScheduler scheduler_;
     bool enable_auto_ = true;
 

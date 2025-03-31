@@ -161,7 +161,7 @@ TEST(MultiThreadGCTest, ConcurrentEnableDisableScheduler) {
 
     gc_collect_blocked();
     wait_bit();
-    ASSERT_GE(GetCounter(), 0); // sanity check; no crash expected
+    ASSERT_GE(GetCounter(), 0);  // sanity check; no crash expected
 }
 
 TEST(MultiThreadGCTest, DeregisterDuringCollect) {
@@ -174,7 +174,7 @@ TEST(MultiThreadGCTest, DeregisterDuringCollect) {
         threads.emplace_back([]() {
             gc_register_thread();
             gc_malloc(64, CounterFinalizer);
-            gc_collect(); // Trigger collection before deregistration
+            gc_collect();  // Trigger collection before deregistration
             gc_deregister_thread();
         });
     }

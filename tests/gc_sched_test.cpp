@@ -18,6 +18,7 @@ TEST(GCAutoTest, BytesThreshold) {
     ASSERT_GE(GetCounter(), 1);  // auto gc collect can not collect last allocation
 
     gc_malloc(threshold / 2, CounterFinalizer);
+    wait_bit();
     ASSERT_GE(GetCounter(), 1);
     gc_collect();
     gc_free_all();
@@ -41,6 +42,7 @@ TEST(GCAutoTest, CallThreshold) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     ASSERT_EQ(GetCounter(), 3);
+    wait_bit();
     gc_free_all();
 }
 

@@ -7,6 +7,10 @@
 
 static std::unique_ptr<GCImpl> gc_instance = std::make_unique<GCImpl>();
 
+Allocation ToAllocation(void* addr, size_t size) {
+    return Allocation{reinterpret_cast<uintptr_t>(addr), size, BasicFinalizer, 0};   
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,10 +18,14 @@ extern "C" {
 void BasicFinalizer(void*, size_t) {
 }
 
+
 void gc_init(GCRoot* roots, size_t num_roots) {
-    std::vector<GCRoot> root_vec;
+    std::vector<Allocation> root_vec;
+    root_vec.reserve(num_roots);
     if (roots && num_roots > 0) {
-        root_vec.assign(roots, roots + num_roots);
+        for (size_t i = 0; i < num_roots; ++i) {
+            root_vec.emplace_back(ToAllocation(roots[i].addr, roots[i].size));
+        }
     }
     gc_instance->Init(root_vec);
 }
@@ -68,11 +76,11 @@ void gc_collect_blocked() {
 }
 
 void gc_add_root(GCRoot root) {
-    gc_instance->AddRoot(root);
+    gc_instance->AddRoot(ToAllocation(root.addr, root.size));
 }
 
 void gc_delete_root(GCRoot root) {
-    gc_instance->DeleteRoot(root);
+    gc_instance->DeleteRoot(ToAllocation(root.addr, root.size));
 }
 
 size_t gc_get_bytes_threshold() {

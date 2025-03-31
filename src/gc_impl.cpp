@@ -1,6 +1,7 @@
 #include "gc_impl.h"
 #include "gc.h"
 #include "gc_fwd.h"
+#include "stealing_queue.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -33,21 +34,21 @@ GCImpl::~GCImpl() {
     FreeAll();
 }
 
-void GCImpl::Init(const std::vector<GCRoot>& roots) {
+void GCImpl::Init(const std::vector<Allocation>& roots) {
     std::lock_guard<std::mutex> lock(lock_collect_);
     roots_ = roots;
 }
 
-void GCImpl::AddRoot(const GCRoot& root) {
+void GCImpl::AddRoot(const Allocation& root) {
     std::lock_guard<std::mutex> lock(lock_collect_);
     roots_.push_back(root);
 }
 
-bool operator==(const GCRoot& lhs, const GCRoot& rhs) {
-    return lhs.addr == rhs.addr;
+bool operator==(const Allocation& lhs, const Allocation& rhs) {
+    return reinterpret_cast<uintptr_t>(lhs.ptr) == reinterpret_cast<uintptr_t>(rhs.ptr);
 }
 
-void GCImpl::DeleteRoot(const GCRoot& root) {
+void GCImpl::DeleteRoot(const Allocation& root) {
     std::lock_guard<std::mutex> lock(lock_collect_);
     std::erase(roots_, root);
 }
@@ -60,10 +61,6 @@ void GCImpl::CreateAllocation(uintptr_t ptr, size_t size, FinalizerT finalizer) 
         scheduler_.UpdateAllocationStats(size);
     }
     ++timer_;
-}
-
-bool operator==(const Allocation& lhs, const Allocation& rhs) {
-    return reinterpret_cast<uintptr_t>(lhs.ptr) == reinterpret_cast<uintptr_t>(rhs.ptr);
 }
 
 void GCImpl::DeleteAllocation(uintptr_t ptr) {
@@ -115,6 +112,9 @@ void* GCImpl::Realloc(void* ptr, size_t size, FinalizerT finalizer) {
 }
 
 void GCImpl::Free(uintptr_t ptr) {
+    if (ptr == 0) {
+        return;
+    }
     Allocation* alloc = FindAllocation<false>(ptr);
     if (alloc == nullptr) {
         return;
@@ -188,7 +188,7 @@ void GCImpl::CollectPrepare() {
 std::vector<Allocation*> GCImpl::MarkRoots() {
     std::vector<Allocation*> live;
     for (const auto& root : roots_) {
-        uintptr_t start = reinterpret_cast<uintptr_t>(root.addr);
+        uintptr_t start = reinterpret_cast<uintptr_t>(root.ptr);
         uintptr_t end = start + root.size - kSize + 1;
         for (uintptr_t ptr = start; ptr < end; ptr += kSize) {
             Allocation* alloc = FindAllocation<true>(GetMemoryPtr(ptr));
@@ -213,6 +213,59 @@ void GCImpl::MarkHeapAllocs(const std::vector<Allocation*>& live_allocs) {
                 heap_alloc->last_valid_time = timer_;
             }
         }
+    }
+}
+
+void GCImpl::MarkParallel() {
+    size_t num_threads = std::thread::hardware_concurrency();
+    size_t idx = 0;
+
+    std::vector<WorkStealingQueue<const Allocation*>> ws_queues(num_threads);
+    for (const Allocation& root : roots_) {
+        ws_queues[idx % num_threads].push(&root);
+        ++idx;
+    }
+
+    auto mark_worker = [this, &ws_queues, num_threads](size_t id) {
+        WorkStealingQueue<const Allocation*>& local_queue = ws_queues[id];
+        const Allocation* current_alloc = nullptr;
+        while (true) {
+            if (!local_queue.pop(current_alloc)) {
+                bool stolen = false;
+                for (size_t i = 0; i < num_threads; ++i) {
+                    if (i == id) {
+                        continue;
+                    }
+                    if (ws_queues[i].steal(current_alloc)) {
+                        stolen = true;
+                        break;
+                    }
+                }
+                if (!stolen) {
+                    break;
+                }
+            }
+
+            uintptr_t heap_start = Aligned(reinterpret_cast<uintptr_t>(current_alloc->ptr));
+            uintptr_t heap_end =
+                reinterpret_cast<uintptr_t>(current_alloc->ptr) + current_alloc->size - kSize + 1;
+            for (uintptr_t ptr = heap_start; ptr < heap_end; ptr += kSize) {
+                Allocation* child_alloc = FindAllocation<false>(GetMemoryPtr(ptr));
+                if (child_alloc != nullptr && child_alloc->last_valid_time < timer_) {
+                    child_alloc->last_valid_time = timer_;
+
+                    local_queue.push(child_alloc);
+                }
+            }
+        }
+    };
+
+    std::vector<std::thread> workers;
+    for (size_t i = 0; i < num_threads; ++i) {
+        workers.emplace_back(mark_worker, i);
+    }
+    for (auto& worker : workers) {
+        worker.join();
     }
 }
 
